@@ -1,123 +1,198 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons"; // Use icons from @expo/vector-icons
-import ProfileDropdown from "./ProfileDropdown";
+import React, { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CommonActions } from '@react-navigation/native';
+import { useContext } from 'react';
+import { AuthContext } from '../common/AuthContext';
 
-const Navbar = ({ title, showBackButton }) => {
+const Navbar = () => {
+  const [menuVisible, setMenuVisible] = useState(false);
   const navigation = useNavigation();
+  const route = useRoute(); 
+
+  const { logout } = useContext(AuthContext);
 
   const pages = [
     { name: "Home", route: "Home", icon: "home-outline" },
     { name: "Restaurant", route: "Restaurant", icon: "restaurant-outline" },
     { name: "OrderTracking", route: "OrderTracking", icon: "receipt-outline" },
     { name: "Cart", route: "Cart", icon: "cart-outline" },
+    { name: "Profile", route: "Profile", icon: "person-outline" }, 
+    {
+      name: "Logout",
+      icon: "log-out-outline",
+      isLogout: true,
+      onPress: async () => {
+        try {
+          await AsyncStorage.clear(); // Clear local storage
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "SignIn" }], // Navigate to Login page
+          });
+        } catch (error) {
+          console.log("Error clearing storage", error);
+        }
+      },
+    },
   ];
 
-  const profileOptions = [
-    { label: "Profile", icon: "person-outline", onPress: () => navigation.navigate("Profile") },
-    { label: "Settings", icon: "settings-outline", onPress: () => navigation.navigate("Settings") },
-    { label: "Sign In", icon: "log-in-outline", onPress: () => navigation.navigate("SignIn") },
-    { label: "Sign Up", icon: "person-add-outline", onPress: () => navigation.navigate("SignUp") },
-    { label: "Logout", icon: "log-out-outline", onPress: () => console.log("Logging out...") },
-  ];
+  const animatedHeight = new Animated.Value(0);
+  const animatedOpacity = new Animated.Value(0);
+
+  useEffect(() => {
+    if (menuVisible) {
+      Animated.parallel([
+        Animated.timing(animatedHeight, {
+          toValue: 335,
+          duration: 600,
+          useNativeDriver: false
+        }),
+        Animated.timing(animatedOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: false
+        })
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(animatedHeight, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: false
+        }),
+        Animated.timing(animatedOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: false
+        })
+      ]).start();
+    }
+  }, [menuVisible]);
+
+  const toggleMenu = () => setMenuVisible(!menuVisible);
 
   return (
-    <View style={styles.navbar}>
-      {/* Back button */}
-      {showBackButton && (
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.iconContainer}
-        >
-          <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
+    <View style={styles.navbarContainer}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Hungry Foods</Text>
+        <TouchableOpacity style={styles.menuButton} onPress={toggleMenu}>
+          <Ionicons name={menuVisible ? "close-outline" : "menu-outline"} size={30} color="#fff" />
         </TouchableOpacity>
-      )}
-
-      {/* Title */}
-      <Text style={styles.navbarTitle}>{title}</Text>
-
-      {/* Navigation List with Icons */}
-      <View style={styles.navList}>
-        {pages.map((page) => (
-          <TouchableOpacity
-            key={page.name}
-            onPress={() => navigation.navigate(page.route)}
-            style={styles.navItem}
-          >
-            <View style={styles.iconWrapper}>
-              <Ionicons name={page.icon} size={24} color="#333333" />
-            </View>
-            <Text style={styles.navText}>{page.name}</Text>
-          </TouchableOpacity>
-        ))}
-        <View style={styles.profileContainer}>
-          <ProfileDropdown options={profileOptions} />
-        </View>
       </View>
+
+      <Animated.View style={[styles.menuItems, { height: animatedHeight, opacity: animatedOpacity }]}>
+  {pages.map((page, index) => (
+    <React.Fragment key={index}>
+      <TouchableOpacity
+        style={[
+          styles.menuItem,
+          route.name === page.route && styles.activeMenuItem,
+          page.isLogout && styles.logoutItem
+        ]}
+        onPress={() => {
+          logout();
+          toggleMenu();
+          navigation.navigate("Login");
+        }}
+      >
+        <Ionicons
+          name={page.icon}
+          size={24}
+          color={page.isLogout ? "#ff6347" : "#fff"}
+          style={styles.icon}
+        />
+        <Text style={[styles.menuText, page.isLogout && styles.logoutText]}>
+          {page.name}
+        </Text>
+      </TouchableOpacity>
+      {index < pages.length - 1 && <View style={styles.separator} />}
+    </React.Fragment>
+  ))}
+</Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  navbar: {
+  navbarContainer: {
+    backgroundColor: "#6a11cb",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
+    zIndex: 10
+  },
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#6a11cb", // Gradient start color
-    paddingVertical: 15,
+    justifyContent: "center",
+    padding: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    backgroundColor: "#ff6347",
+    paddingVertical: 5,
     paddingHorizontal: 10,
+    borderRadius: 5,
+    fontFamily: "chewy",
+    textAlign: "center",
+  },
+  menuButton: {
+    position: "absolute",
+    right: 10,
+    padding: 10,
+    backgroundColor: "#ff6347",
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  menuItems: {
+    overflow: "hidden",
+    backgroundColor: "#6a11cb",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    elevation: 5, // Shadow effect
-  },
-  navbarTitle: {
-    flex: 1,
-    fontSize: 26,
-    fontWeight: "900",
-    textAlign: "center",
-    color: "#ff6347", // Tomato color for a fun look
+    alignItems: "center",
     paddingVertical: 10,
-    textTransform: "uppercase", // Makes text all caps
-    letterSpacing: 2, // Adds spacing between letters
-    textShadowColor: "#00bfff", // Light blue shadow for contrast
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 5,
-    borderWidth: 2,
-    borderColor: "#ff4500", // Orange red border for extra flair
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    maxWidth: "80%",
   },
-  navList: {
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    width: "100%",
+    justifyContent: "center"
   },
-  navItem: {
-    flexDirection: "column",
-    alignItems: "center",
-    marginHorizontal: 12,
+  activeMenuItem: {
+    backgroundColor: "#ff6347",
+    borderRadius: 10,
   },
-  iconWrapper: {
-    backgroundColor: "#ffffff",
-    padding: 8,
-    borderRadius: 30,
-    shadowColor: "#000", // Shadow for the icon background
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  icon: {
+    width: 30, // Ensures icons align in the same column
+    textAlign: "center",
   },
-  navText: {
-    fontSize: 12,
-    color: "#ffffff",
-    marginTop: 5,
+  menuText: {
+    color: "#fff",
+    fontSize: 18,
+    marginLeft: 15,
+    textAlign: "center",
   },
-  iconContainer: {
-    padding: 5,
-    marginRight: 10,
+  separator: {
+    height: 1,
+    width: "90%",
+    backgroundColor: "#fff",
+    opacity: 0.3,
+    alignSelf: "center",
   },
-  profileContainer: {
-    marginLeft: 20, // Adjust this value to add space
+  logoutItem: {
+    backgroundColor: "#f8d7da",
+  },
+  logoutText: {
+    color: "#ff6347",
   },
 });
 

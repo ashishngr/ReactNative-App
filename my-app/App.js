@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
 import Navigation from './Navigation';
+import AuthContextProvider from './common/AuthContext';
 
 
 export default function App() {
@@ -10,7 +11,9 @@ export default function App() {
     //   <Text>Ashish Nagar First --- React Native APP</Text>
     //   <StatusBar style="auto" />
     // </View>
-    <Navigation />
+    <AuthContextProvider>
+      <Navigation />
+    </AuthContextProvider>
   );
 }
 
